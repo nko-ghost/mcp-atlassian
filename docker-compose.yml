@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  mcp-atlassian:
+    image: ghcr.io/sooperset/mcp-atlassian:latest
+    container_name: mcp-atlassian
+    restart: unless-stopped
+
+    # Cargar variables de entorno desde archivo .env
+    env_file:
+      - .env
+
+    # También puedes especificar variables de entorno directamente aquí
+    # (estas sobreescriben las del archivo .env)
+    environment:
+      # URLs de tu instancia Atlassian
+      - JIRA_URL=${JIRA_URL:-https://tu-empresa.atlassian.net}
+      - CONFLUENCE_URL=${CONFLUENCE_URL:-https://tu-empresa.atlassian.net/wiki}
+
+      # Autenticación - Método 1: API Token (Recomendado para Cloud)
+      - JIRA_USERNAME=${JIRA_USERNAME}
+      - JIRA_API_TOKEN=${JIRA_API_TOKEN}
+      - CONFLUENCE_USERNAME=${CONFLUENCE_USERNAME}
+      - CONFLUENCE_API_TOKEN=${CONFLUENCE_API_TOKEN}
+
+      # Autenticación - Método 2: Personal Access Token (Server/DC)
+      # Descomenta si usas Server/Data Center
+      # - JIRA_PERSONAL_TOKEN=${JIRA_PERSONAL_TOKEN}
+      # - CONFLUENCE_PERSONAL_TOKEN=${CONFLUENCE_PERSONAL_TOKEN}
+
+      # Configuración opcional
+      - TRANSPORT=${TRANSPORT:-stdio}
+      - MCP_VERBOSE=${MCP_VERBOSE:-false}
+
+      # Filtros opcionales para limitar acceso a proyectos/espacios específicos
+      # - JIRA_PROJECTS_FILTER=${JIRA_PROJECTS_FILTER}
+      # - CONFLUENCE_SPACES_FILTER=${CONFLUENCE_SPACES_FILTER}
+
+      # Modo de solo lectura (desactiva operaciones de escritura)
+      # - READ_ONLY_MODE=${READ_ONLY_MODE:-false}
+
+    # Usar stdin para comunicación MCP
+    stdin_open: true
+    tty: true
+
+    # Red (opcional, útil para debugging)
+    # ports:
+    #   - "8000:8000"  # Solo necesario si usas TRANSPORT=sse
+
+    # Volúmenes (opcional, para persistir configuración OAuth si la usas)
+    # volumes:
+    #   - mcp-atlassian-data:/home/app/.mcp-atlassian
+
+# Volúmenes opcionales
+# volumes:
+#   mcp-atlassian-data:
+#     driver: local
