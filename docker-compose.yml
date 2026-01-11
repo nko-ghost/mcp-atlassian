@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # MCP Atlassian - Servidor local (modo stdio)
+  # ============================================================================
+  # Este perfil se usa para conexiones locales desde Claude/Cursor
+  # NO expone puertos, solo para uso local
+  # Uso: docker compose run --rm mcp-atlassian
+  mcp-atlassian:
+    image: ghcr.io/sooperset/mcp-atlassian:latest
+    container_name: mcp-atlassian-local
+    profiles: ["local"]
+
+    env_file:
+      - .env
+
+    environment:
+      # Modo stdio para uso local (default)
+      - TRANSPORT=stdio
+
+      # Variables requeridas (se toman del .env)
+      - JIRA_URL=${JIRA_URL}
+      - JIRA_USERNAME=${JIRA_USERNAME}
+      - JIRA_API_TOKEN=${JIRA_API_TOKEN}
+      - CONFLUENCE_URL=${CONFLUENCE_URL}
+      - CONFLUENCE_USERNAME=${CONFLUENCE_USERNAME}
+      - CONFLUENCE_API_TOKEN=${CONFLUENCE_API_TOKEN}
+
+      # Opcionales
+      - MCP_VERBOSE=${MCP_VERBOSE:-false}
+      - READ_ONLY_MODE=${READ_ONLY_MODE:-false}
+
+    # Necesario para comunicación stdio
+    stdin_open: true
+    tty: true
+
+  # ============================================================================
+  # MCP Atlassian - Servidor HTTP (modo remoto/VPS)
+  # ============================================================================
+  # Este perfil expone un servidor HTTP accesible remotamente
+  # Ideal para VPS o uso multi-usuario
+  # Uso: docker compose --profile http up -d
+  mcp-atlassian-http:
+    image: ghcr.io/sooperset/mcp-atlassian:latest
+    container_name: mcp-atlassian-http
+    profiles: ["http"]
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      # Modo HTTP para uso remoto
+      - TRANSPORT=${TRANSPORT:-sse}
+      - PORT=${PORT:-9000}
+      - HOST=${HOST:-0.0.0.0}
+
+      # Variables requeridas
+      - JIRA_URL=${JIRA_URL}
+      - JIRA_USERNAME=${JIRA_USERNAME}
+      - JIRA_API_TOKEN=${JIRA_API_TOKEN}
+      - CONFLUENCE_URL=${CONFLUENCE_URL}
+      - CONFLUENCE_USERNAME=${CONFLUENCE_USERNAME}
+      - CONFLUENCE_API_TOKEN=${CONFLUENCE_API_TOKEN}
+
+      # Opcionales
+      - MCP_VERBOSE=${MCP_VERBOSE:-false}
+      - READ_ONLY_MODE=${READ_ONLY_MODE:-false}
+      - STATELESS=${STATELESS:-false}
+
+    # Exponer puerto para acceso HTTP
+    ports:
+      - "${PORT:-9000}:${PORT:-9000}"
+
+    # Comando para iniciar en modo HTTP
+    command: ["--transport", "${TRANSPORT:-sse}", "--port", "${PORT:-9000}", "-vv"]
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${PORT:-9000}/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# ============================================================================
+# NOTAS DE USO
+# ============================================================================
+#
+# MODO LOCAL (stdio):
+# -------------------
+# Para usar con Claude/Cursor en tu PC local:
+#
+#   1. docker compose run --rm mcp-atlassian
+#
+#   2. En Claude/Cursor config:
+#      {
+#        "command": "docker",
+#        "args": ["compose", "run", "--rm", "mcp-atlassian"]
+#      }
+#
+# MODO HTTP/REMOTO (sse o streamable-http):
+# ------------------------------------------
+# Para exponer como servidor HTTP (VPS, multi-usuario):
+#
+#   1. docker compose --profile http up -d
+#
+#   2. Acceder en: http://localhost:9000/sse
+#
+#   3. En Claude/Cursor config:
+#      {
+#        "url": "http://localhost:9000/sse"
+#      }
+#
+# Para usar streamable-http en lugar de sse:
+#   - Cambia TRANSPORT=streamable-http en .env
+#   - URL será: http://localhost:9000/mcp
+#
+# ============================================================================
